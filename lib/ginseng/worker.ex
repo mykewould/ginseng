@@ -50,7 +50,7 @@ defmodule Ginseng.Worker do
           Mnesia.write(record)
           nil
         #I think this is wrong.
-        [{:ginseng_cache, old_value}] ->
+        [{:ginseng_cache, _key, old_value}] ->
             Mnesia.write(record)
             old_value
       end
@@ -62,7 +62,7 @@ defmodule Ginseng.Worker do
 
   def handle_call({:get, key}, _from, state) do
     case Mnesia.dirty_read({:ginseng_cache, key}) do
-      [{:ginseng_cache, value}] ->
+      [{:ginseng_cache, _key, value}] ->
         {:reply, value, []}
       _ ->
         {:reply, nil, state}
@@ -75,7 +75,7 @@ defmodule Ginseng.Worker do
       case Mnesia.read(:ginseng_cache, key) do
         [] ->
           nil
-        [{:ginseng_cache, old_value}] ->
+        [{:ginseng_cache, _key, old_value}] ->
           Mnesia.delete({:ginseng_cache, key})
           value
       end
