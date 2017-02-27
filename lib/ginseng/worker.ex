@@ -3,33 +3,33 @@ defmodule Ginseng.Worker do
   alias :mnesia, as: Mnesia
 
   # Start/stop
-  def start() do
-    GenServer.start_link(__MODULE__, [])
+  def start_link() do
+    GenServer.start_link(__MODULE__, [], name: :cache)
   end
 
   def stop() do
-    GenServer.cast(__MODULE__, :stop)
+    GenServer.stop(:cache)
   end
 
   # Functional Inteface
 
   def put(key, value) do
-    GenServer.call(__MODULE__, {:put, key, value})
+    GenServer.call(:cache, {:put, key, value})
   end
 
   def get(key) do
-    GenServer.call(__MODULE__, {:get, key})
+    GenServer.call(:cache, {:get, key})
   end
 
   def remove(key) do
-    GenServer.call(__MODULE__, {:remove, key})
+    GenServer.call(:cache, {:remove, key})
   end
 
   # Callback functions
 
   def init(_) do
-    Application.start(Mnesia)
-    Mnesia.wait_for_tables([:ginseng_cache], :infinity)
+    Mnesia.start
+    Mnesia.create_table(:ginseng_cache, [attributes: [:key, :value]])
     {:ok, []}
   end
 
@@ -44,16 +44,8 @@ defmodule Ginseng.Worker do
   def handle_call({:put, key, value}, _from, state) do
     record = {:ginseng_cache, key, value}
     data_to_write = fn() ->
-      # Check to see what really comes out of reads and writes
-      case Mnesia.read(:ginseng_cache, key) do
-        [] ->
-          Mnesia.write(record)
-          nil
-        #I think this is wrong.
-        [{:ginseng_cache, _key, old_value}] ->
-            Mnesia.write(record)
-            old_value
-      end
+      Mnesia.write(record)
+      value
     end
 
     {:atomic, result} = Mnesia.transaction(data_to_write)
@@ -71,17 +63,16 @@ defmodule Ginseng.Worker do
 
   def handle_call({:remove, key}, _from, state) do
     data_to_remove = fn() ->
-      # Check to see what really comes out of reads and writes
       case Mnesia.read(:ginseng_cache, key) do
         [] ->
           nil
-        [{:ginseng_cache, _key, old_value}] ->
+        [{:ginseng_cache, key, value}] ->
           Mnesia.delete({:ginseng_cache, key})
           value
       end
     end
 
-    {:atomic, result} = Mnesia.transaction(data_to_write)
+    {:atomic, result} = Mnesia.transaction(data_to_remove)
     {:reply, result, state}
   end
 end
