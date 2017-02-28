@@ -23,3 +23,4 @@ erl_crash.dump
 /deps
 erl_crash.dump
 *.ez
+Mnesia*

@@ -28,13 +28,14 @@ defmodule Ginseng.Worker do
   # Callback functions
 
   def init(_) do
+    Mnesia.create_schema(node_list())
     Mnesia.start
     Mnesia.create_table(:ginseng_cache, [attributes: [:key, :value]])
     {:ok, []}
   end
 
   def terminate(_reason, _state) do
-    Application.stop(Mnesia)
+    Mnesia.stop
   end
 
   def handle_cast(:stop, state) do
@@ -74,5 +75,12 @@ defmodule Ginseng.Worker do
 
     {:atomic, result} = Mnesia.transaction(data_to_remove)
     {:reply, result, state}
+  end
+
+  defp node_list do
+    case Application.get_env(:ginseng, :nodelist) do
+      nil       -> node()
+      node_list -> node_list
+    end
   end
 end
