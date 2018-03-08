@@ -18,7 +18,10 @@ defmodule Ginseng.Worker do
   end
 
   def get(key) do
-    GenServer.call(:cache, {:get, key})
+    case Mnesia.dirty_read({:ginseng_cache, key}) do
+      [{:ginseng_cache, _key, value}] -> value
+      _ -> nil
+    end
   end
 
   def remove(key) do
@@ -51,15 +54,6 @@ defmodule Ginseng.Worker do
 
     {:atomic, result} = Mnesia.transaction(data_to_write)
     {:reply, result, state}
-  end
-
-  def handle_call({:get, key}, _from, state) do
-    case Mnesia.dirty_read({:ginseng_cache, key}) do
-      [{:ginseng_cache, _key, value}] ->
-        {:reply, value, []}
-      _ ->
-        {:reply, nil, state}
-    end
   end
 
   def handle_call({:remove, key}, _from, state) do
